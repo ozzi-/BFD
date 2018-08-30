@@ -1,65 +1,66 @@
+import java.awt.Dimension;
+import java.awt.GridBagLayout;
+import java.awt.Toolkit;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.io.File;
 import java.io.IOException;
-import java.net.URLDecoder;
-import java.nio.charset.Charset;
-import java.nio.file.Files;
-import java.util.List;
 
-import net.lingala.zip4j.core.ZipFile;
-import net.lingala.zip4j.exception.ZipException;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.WindowConstants;
 
-
-// usage: java -jar BFD.jar /path/to/zip /path/to/passwordlist
 public class BFD {
+	static String zipPath=null;
+	static String passwordListPath=null;
+	
 	public static void main(String[] args) throws IOException {
-		if (args.length != 2) {
-			System.out.println("Usage: BFD.jar zip passwordlist");
-			System.exit(1);
-		}
-		String zipPath = args[0];
-		String passListPath = args[1];
-		File zP = new File(passListPath);
-		if (!zP.exists() || zP.isDirectory()) {
-			System.err.println(passListPath + " can not be found");
-			System.exit(1);
-		}
-		File fP = new File(passListPath);
-		if (!fP.exists() || fP.isDirectory()) {
-			System.err.println(passListPath + " can not be found");
-			System.exit(1);
-		}
-		String path = BFD.class.getProtectionDomain().getCodeSource().getLocation().getPath();
-		String runPath = URLDecoder.decode(path, "UTF-8");
-		long start = System.currentTimeMillis();
+		JFrame loadPanel = new JFrame("BFD");
+		Dimension dim = Toolkit.getDefaultToolkit().getScreenSize();
+		loadPanel.setMinimumSize(new Dimension(400, 120));
+		loadPanel.setMaximumSize(new Dimension(400, 120));
+		loadPanel.setLocation(dim.width / 2 - loadPanel.getSize().width / 2, dim.height / 2 - loadPanel.getSize().height / 2);
+		loadPanel.getContentPane().setLayout(new GridBagLayout());
+		loadPanel.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+
+		JLabel jti = new JLabel("Drag and Drop ZIP File");
+		loadPanel.add(jti);
+		JButton bc = new JButton("Start Brute-Force");
 		
-		List<String> pwlist = Files.readAllLines(new File(passListPath).toPath(), Charset.defaultCharset());
-		int i = 0;
-		for (String pw : pwlist) {
-			boolean res = decryptAndUnzip(zipPath, pw, runPath);
-			if (res) {
-				long end = System.currentTimeMillis();
-				System.out.println("(" + (++i) + "/" + pwlist.size() + ") " + pw);
-				System.out.println("****************************************");
-				System.out.println("Password found in "+(end-start)+"ms : " + pw);
-				System.out.println("****************************************");
-				System.exit(0);
+		BruteForceZIP bfz = new BruteForceZIP();
+		
+		bc.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				loadPanel.dispose();
+			    new Thread(new Runnable() {
+			        public void run() {
+			        	bfz.start(zipPath,passwordListPath);
+			        }
+			    }).start();
 			}
-			System.out.println("(" + (++i) + "/" + pwlist.size() + ") " + pw);
-		}
-		System.out.println("Could not decrypt zip with passwords provided");
-		System.exit(2);
+		});
+
+		loadPanel.add(bc);
+		bc.setEnabled(false);
+
+		new FileDrop(loadPanel, new FileDrop.Listener() {
+			public void filesDropped(java.io.File[] files) {
+				for (File file : files) {
+					if (file.getName().toLowerCase().endsWith("zip")) {
+						jti.setText("<html>"+file.getName()+"<br>Optional: Drag and Drop Passwordlist</html>");
+						zipPath=file.getAbsolutePath();
+						bc.setEnabled(true);
+					}else if(zipPath!=null){
+						passwordListPath = file.getAbsolutePath();
+						jti.setText("<html>"+zipPath+"<br>using password list "+passwordListPath+"</html>");
+					}
+				}
+			}
+		});
+		loadPanel.pack();
+		loadPanel.setVisible(true);
 	}
 
-	public static boolean decryptAndUnzip(String zipPath, String pw, String unzipPath) throws IOException {
-		try {
-		    ZipFile zipFile = new ZipFile(zipPath);
-		    if (zipFile.isEncrypted()) {
-		        zipFile.setPassword(pw);
-		    }
-		    zipFile.extractAll(unzipPath);
-		} catch (ZipException e) {
-			return false;
-		}
-		return true;
-	}
+
 }
