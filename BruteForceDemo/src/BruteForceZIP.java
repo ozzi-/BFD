@@ -60,6 +60,7 @@ public class BruteForceZIP {
 		File zP = new File(zipPath);
 		if (!zP.exists() || zP.isDirectory()) {
 			System.err.println(zipPath + " can not be found");
+			// TODO handle this error as GUI error
 			System.exit(1);
 		}
 		List<String> pwlist = null;
@@ -80,11 +81,13 @@ public class BruteForceZIP {
 			passListPath = passwordListPath;
 			File fP = new File(passListPath);
 			if (!fP.exists() || fP.isDirectory()) {
+				// TODO handle this error as GUI error
 				System.err.println(passListPath + " can not be found");
 				System.exit(1);
 			}
 			pwlist = Files.readAllLines(new File(passListPath).toPath(), Charset.defaultCharset());
 			boolean skipOutputForPerformance = pwlist.size() > 100;
+			boolean foundpassword=false;
 			for (String pw : pwlist) {
 				i++;
 				boolean res = Util.decryptAndUnzip(zipPath, pw, runPath);
@@ -92,13 +95,17 @@ public class BruteForceZIP {
 					long end = System.currentTimeMillis();
 					jtf.setText(pw);
 					jl.setText("Password found in " + (end - start) / 1000 + "s : " + pw);
+					foundpassword=true;
+					break;
 				}
 				if ((skipOutputForPerformance && i % 50 == 0) || !skipOutputForPerformance || i == pwlist.size()) {
 					jpb.setValue((i * 100 / pwlist.size()));
 					jtf.setText(pw);
 				}
 			}
-			jl.setText("Could not find valid password");
+			if(!foundpassword) {
+				jl.setText("Could not find valid password");				
+			}
 		} else {
 			jl.setText("Running using Brute-Force Permutation");
 			List<Character> characters = new ArrayList<Character>();
