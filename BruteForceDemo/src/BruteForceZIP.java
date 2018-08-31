@@ -13,6 +13,7 @@ import java.util.List;
 
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JOptionPane;
 import javax.swing.JProgressBar;
 import javax.swing.JTextField;
 import javax.swing.WindowConstants;
@@ -22,8 +23,11 @@ public class BruteForceZIP {
 	private JFrame jf;
 	private JProgressBar jpb;
 	private JTextField jtf;
-	private JLabel jl;
-
+	private static JLabel jl;
+	private int min;
+	private int max;
+	private static String lastPW;
+	
 	public BruteForceZIP() {
 		Dimension dim = Toolkit.getDefaultToolkit().getScreenSize();
 		jf = new JFrame("BFD");
@@ -59,9 +63,11 @@ public class BruteForceZIP {
 
 		File zP = new File(zipPath);
 		if (!zP.exists() || zP.isDirectory()) {
-			System.err.println(zipPath + " can not be found");
-			// TODO handle this error as GUI error
-			System.exit(1);
+			JOptionPane.showMessageDialog(jf,
+				    "Zip could not be found",
+				    "Error",
+				    JOptionPane.ERROR_MESSAGE);
+			return;
 		}
 		List<String> pwlist = null;
 		String passListPath = null;
@@ -73,17 +79,17 @@ public class BruteForceZIP {
 		jf.revalidate();
 		jf.repaint();
 
-		
 		int i = 0;
-
 		if (passwordListPath != null) {
 			jl.setText("Running using passwordlist");
 			passListPath = passwordListPath;
 			File fP = new File(passListPath);
 			if (!fP.exists() || fP.isDirectory()) {
-				// TODO handle this error as GUI error
-				System.err.println(passListPath + " can not be found");
-				System.exit(1);
+				JOptionPane.showMessageDialog(jf,
+					    "Passwordlist could not be found",
+					    "Error",
+					    JOptionPane.ERROR_MESSAGE);
+				return;
 			}
 			pwlist = Files.readAllLines(new File(passListPath).toPath(), Charset.defaultCharset());
 			boolean skipOutputForPerformance = pwlist.size() > 100;
@@ -104,57 +110,116 @@ public class BruteForceZIP {
 				}
 			}
 			if(!foundpassword) {
-				jl.setText("Could not find valid password");				
+				jl.setText("Could not find valid password");
 			}
 		} else {
 			jl.setText("Running using Brute-Force Permutation");
-			List<Character> characters = new ArrayList<Character>();
-
+			ArrayList<String> charSet2 = new ArrayList<String>();
 			for (char c = 'a'; c <= 'z'; c++) {
-				characters.add(c);
+				charSet2.add(String.valueOf(c));
 			}
 			for (char c = '0'; c <= '9'; c++) {
-				characters.add(c);
+				charSet2.add(String.valueOf(c));
 			}
-			boolean foundPW = false;
-			int tot = characters.size() * characters.size() * characters.size() * characters.size();
-			outerloop:
-			for (Character c : characters) {
-				for (Character d : characters) {
-					for (Character e : characters) {
-						for (Character f : characters) {
-							String pw = "" + c + d + e + f;
-							i++;
-							boolean res = Util.decryptAndUnzip(zipPath, pw, runPath);
-							
-							if (res) {
-								long end = System.currentTimeMillis();
-								jtf.setText(pw);
-								jl.setText("Password found in " + (end - start) / 1000 + "s : " + pw);
-								foundPW = true;
-								break outerloop;
-							}
-							if (i % 100 == 0) {
-								jtf.setText(pw);
-								jpb.setValue(i * 100 / tot);
-							}
-						}
-
-					}
-				}
-			}
+			boolean foundPW = runCombinations(charSet2, zipPath, runPath, jtf, jl, jpb);
 			if (!foundPW) {
+				jtf.setText(lastPW);
 				jl.setText("Could not find password");
 			}
 		}
 	}
+	
+	// this could be done mathematically, but im too lazy and its fast enough
+	private static long getCombinationCount(int charset, int min, int max) {
+		int c = 0;
+		for (int il = min; il <= max; il++) {
+			int carry;
+			int[] indices = new int[il];
+			do {
+				c++;
+				carry = 1;
+				for (int i = indices.length - 1; i >= 0; i--) {
+					if (carry == 0)
+						break;
+					indices[i] += carry;
+					carry = 0;
+					
+					if (indices[i] == charset) {
+						carry = 1;
+						indices[i] = 0;
+					}
+				}
+			} while (carry != 1);
+		}
+		return c;
+	}
+	private boolean runCombinations(ArrayList<String> possibleValues, String zipPath, String runPath, JTextField jtf, JLabel jl2, JProgressBar jpb) {
+		long start = System.currentTimeMillis();
+		long tot = getCombinationCount(possibleValues.size(), min, max); 
+		long c = 0 ;
+		for (int il = min; il <= max; il++) {
+			int carry;
+			int[] indices = new int[il];
+			do {
+				String pw = "";
+				for (int index : indices) {
+					pw+=possibleValues.get(index);			
+				}
+				lastPW = pw;
+				c++;
+				boolean res=false;
+				try {
+					res = Util.decryptAndUnzip(zipPath, pw, runPath);
+				}catch(Exception e) {
+					e.printStackTrace();
+				}
+				
+				if (res) {
+					long end = System.currentTimeMillis();
+					jtf.setText(pw);
+					jl.setText("Password found in " + (end - start) / 1000 + "s : " + pw);
+					return true;
+				}
+				if (c % 100 == 0) {
+					jtf.setText(pw);
+					jpb.setValue((int)(c * 100 / tot));
+				}
+				
+				carry = 1;
+				for (int i = indices.length - 1; i >= 0; i--) {
+					if (carry == 0)
+						break;
+					
+					indices[i] += carry;
+					carry = 0;
+					
+					if (indices[i] == possibleValues.size()) {
+						carry = 1;
+						indices[i] = 0;
+					}
+				}
+			} while (carry != 1);
+		}
+		return false;
+	}
 
-	public void start(String zipPath, String passwordListPath) {
+	public void start(String zipPath, String passwordListPath, String min, String max) {
 		jf.setVisible(true);
+		try {
+			this.min = Integer.valueOf(min);
+			this.max = Integer.valueOf(max);			
+		}catch(Exception e) {
+			this.min = 2;
+			this.max = 3;
+		}
 		try {
 			bruteForceZIP(zipPath,passwordListPath);
 		} catch (IOException e) {
 			e.printStackTrace();
+			JOptionPane.showMessageDialog(jf,
+				    e.getMessage(),
+				    "Error",
+				    JOptionPane.ERROR_MESSAGE);
 		}
 	}
 }
