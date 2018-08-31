@@ -74,6 +74,9 @@ public class BruteForceZIP {
 
 		String path = BFD.class.getProtectionDomain().getCodeSource().getLocation().getPath();
 		String runPath = URLDecoder.decode(path, "UTF-8");
+		if(runPath.toLowerCase().endsWith(".jar")) {
+			runPath = runPath.substring(0, runPath.lastIndexOf('.'));
+		}
 		long start = System.currentTimeMillis();
 
 		jf.revalidate();
@@ -165,6 +168,7 @@ public class BruteForceZIP {
 				for (int index : indices) {
 					pw+=possibleValues.get(index);			
 				}
+
 				lastPW = pw;
 				c++;
 				boolean res=false;
