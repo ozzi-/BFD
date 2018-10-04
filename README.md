@@ -1,6 +1,17 @@
 # BFD
 BFD (Brute-Force Demo) is a simple demonstration of a brute-force attack against password protected ZIP files.
 
+
+## Release 2.0 (GUI)
+
+![BFD](https://i.imgur.com/z0az5DD.png "BFD")
+![BFD](https://i.imgur.com/8oeR72i.png "Loaded ZIP file")
+![BFD](https://i.imgur.com/7QJif3x.png "Brute Force running")
+![BFD](https://i.imgur.com/eD3nr3R.png "Brute Force successful")
+
+
+## Release 1.0 (console)
+
 Usage:
 
 ```
@@ -25,5 +36,5 @@ Password found in 782ms : 1v7Upjw3nT
 ****************************************
 ```
 
-# Demo
+### Demo
 https://asciinema.org/a/2RT7quXXCFnbizPhvE8SqWmiY
